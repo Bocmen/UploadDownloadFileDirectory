@@ -16,6 +16,7 @@ namespace UploadDownloadWdho
 {
     public static class Upload
     {
+
         /// <summary>
         /// Загрузка файла
         /// </summary>
@@ -71,9 +72,24 @@ namespace UploadDownloadWdho
             {
                 resul = Json.Remove(0, Json.IndexOf(Name));
                 resul = resul.Remove(0, resul.IndexOf(":") + 1);
-                resul = resul.Substring(0, resul.IndexOf(','));
-                resul = resul.Remove(0, resul.IndexOf("\"") + 1);
-                resul = resul.Substring(0, resul.IndexOf("\""));
+                int One = int.MaxValue, Two = int.MaxValue, Three = int.MaxValue;
+
+                if (resul.Contains(',')) One = resul.IndexOf(',');
+                if (resul.Contains(']')) Two = resul.IndexOf(']');
+                if (resul.Contains('}')) Three = resul.IndexOf('}');
+
+                resul = resul.Substring(0, Math.Min(Math.Min(One, Two), Three));
+
+                if (resul.Contains("null")) return null;
+
+                if (resul.Contains('\"'))
+                {
+                    resul = resul.Remove(0, resul.IndexOf('\"') + 1);
+                    resul = resul.Substring(0, resul.IndexOf('\"'));
+                    return resul;
+                }
+                // Эта часть проверки не подверглась
+                return resul.Replace(" ", null).Replace("\r", null).Replace("\n", null).Replace("\t", null);
             }
             catch { }
             return resul;
@@ -97,8 +113,8 @@ namespace UploadDownloadWdho
             // Поиск maxChunkSize (хз для чего он)
             Resul = Html.Remove(0, Html.IndexOf(Setting.Search_browserXHR2Support));
             Resul = Resul.Remove(0, Resul.IndexOf(Setting.Search_maxChunkSize));
-            Resul = Resul.Substring(Resul.IndexOf('='), Resul.IndexOf(';'));
-            datKeys.maxChunkSize = Convert.ToUInt32(Resul.Replace('=', ' ').Replace(';', ' '));
+            Resul = Resul.Substring(Resul.IndexOf('=') + 1, Resul.IndexOf(';') - (Resul.IndexOf('=') + 1));
+            datKeys.maxChunkSize = Convert.ToUInt32(Resul);
             // Поиск _sessionid (какой то личный индификатор "сессии")
             Resul = Html.Remove(0, Html.IndexOf(Setting.Search__sessionid));
             datKeys._sessionid = Resul.Substring(Resul.IndexOf('\'') + 1, Resul.Remove(0, Resul.IndexOf('\'') + 1).IndexOf('\''));
@@ -227,6 +243,8 @@ namespace UploadDownloadWdho
         // Dovnload
         public const string Search_UrlOne = @"{0}?pt=";
         public const string Search_UrlFinal = @"download_token";
+        // Function
+        public const string Search_NameFile = @"heading-1";
     }
     /// <summary>
     /// Не моё решение
@@ -346,7 +364,7 @@ namespace UploadDownloadWdho
     /// Информация о загруженном файле
     /// </summary>
     [Serializable]
-    public struct InfoFile
+    public class InfoFile
     {
         /// <summary>
         /// Название файла
@@ -376,5 +394,76 @@ namespace UploadDownloadWdho
         /// Ссылка на статисктику файла
         /// </summary>
         public string stats_url;
+
+        public override string ToString()
+        {
+            return String.Format("name: {0}\r\nsize: {1}\r\nerror: {2}\r\nurl: {3}\r\ndelete_url: {4}\r\ninfo_url: {5}\r\nstats_url: {6}", name, size, error, url, delete_url, info_url, stats_url);
+        }
+    }
+    public static class Function
+    {
+        private static WebClient webClient = new WebClient();
+        public static GetedInfoFile GetInfoFile(string Url)
+        {
+            GetedInfoFile infoFile = new GetedInfoFile();
+            infoFile.stats_url = GetStatiUrl(Url);
+            string Html = webClient.DownloadString(Url);
+            // Получение имени
+            infoFile.NameFile = Html.Remove(0, Html.IndexOf(Setting.Search_NameFile));
+            infoFile.NameFile = infoFile.NameFile.Substring(infoFile.NameFile.IndexOf('>') + 1, infoFile.NameFile.IndexOf('<') - (infoFile.NameFile.IndexOf('>') + 1));
+            infoFile.NameFile = infoFile.NameFile.Substring(0, infoFile.NameFile.LastIndexOf(".txt"));//Имя файла: Био.pptx.txt
+            // Отсекаем ненужную часть Html
+            Html = Html.Remove(0, Html.IndexOf("Размер файла:"));
+            // Получаем размер файла
+            infoFile.Size = Convert.ToDouble(Html.Substring(Html.IndexOf(":") + 1, Html.IndexOf("MB") - (Html.IndexOf(":") + 1)).Replace('.', ','));
+            // Получение даты загрузки фйла
+            infoFile.UploadData = Html.Remove(0, Html.IndexOf("Файл загружен"));
+            infoFile.UploadData = infoFile.UploadData.Substring(infoFile.UploadData.IndexOf(":") + 1, infoFile.UploadData.IndexOf("<") - (infoFile.UploadData.IndexOf(":") + 1));
+            // Получения количества загрузок
+            Html = Html.Remove(0, Html.IndexOf("Файл скачали"));
+            infoFile.CountDownload = Convert.ToUInt32(Html.Substring(Html.IndexOf(':') + 1, Html.IndexOf('<') - 1 - Html.IndexOf(':')));
+            return infoFile;
+        }
+        /// <summary>
+        /// Получение ссылки на страницу со статистикой
+        /// </summary>
+        /// <param name="UrlFile">Ссылка на файл</param>
+        /// <returns></returns>
+        public static string GetStatiUrl(string UrlFile)
+        {
+            return UrlFile + "~s";
+        }
+
+        /// <summary>
+        /// Получаемая информация о файле методом GetInfoFile по ссылке на файл
+        /// </summary>
+        public class GetedInfoFile
+        {
+            /// <summary>
+            /// Название файла
+            /// </summary>
+            public string NameFile;
+            /// <summary>
+            /// Размер файла в MB
+            /// </summary>
+            public double Size;
+            /// <summary>
+            /// Когда был загружен файл
+            /// </summary>
+            public string UploadData;
+            /// <summary>
+            /// Количесттво скачиваний
+            /// </summary>
+            public uint CountDownload;
+            /// <summary>
+            /// Ссылка на страницу со статистикой
+            /// </summary>
+            public string stats_url;
+
+            public override string ToString()
+            {
+                return String.Format("NameFile: {0}\r\nSize: {1} MB\r\nUploadData: {2}\r\nCountDownload: {3}\r\nstats_url: {4}", NameFile, Size, UploadData, CountDownload, stats_url);
+            }
+        }
     }
 }
