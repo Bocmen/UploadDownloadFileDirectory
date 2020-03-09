@@ -15,7 +15,7 @@
 * <b>PatchFile</b> - путь к файлу
 * <b>MaxFilesUpload</b> - максимальное число одновременно загружаемых на Сервер частей файла
 * <b>Password</b> - пароль для шифрования главного файла (при загрузки больших файлов они разбиваются на части, эти части автоматически шифруются и все данные о частях хранятся в главном файле пароль которому задаётся пользователем. Если файл небольшой то пароль применяется к самому файлу)
-* <b>massenge</b> - можно указать метод для логирования  <b>Massenge(string Text, ConsoleColor Color) где <b>string Text</b> это строка самого сообщения, а <b>ConsoleColor Color</b> перечисление цветов содержащиеся в стандартной библиотеке System
+* <b>massenge</b> - можно указать метод для логирования  <b>Massenge(string Text, ConsoleColor Color)</b> где <b>string Text</b> это строка самого сообщения, а <b>ConsoleColor Color</b> перечисление цветов содержащиеся в стандартной библиотеке System
 
 `ResulUploadFileInfo InfoUpload = HendlerUploadFileClass.UploadFileHendler(string PatchFile, byte MaxFilesUpload = 1, string Password = null, FunctionAndSetting.Massenge massenge = null);`
 
