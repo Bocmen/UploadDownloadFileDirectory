@@ -9,7 +9,7 @@
 
 Создаём ээкземпляр класса для загрузки файла
 
-'UploadDownload7.Core.UploadFile HendlerUploadFileClass = new UploadDownload7.Core.UploadFile();'
+`UploadDownload7.Core.UploadFile HendlerUploadFileClass = new UploadDownload7.Core.UploadFile();`
 
 Вызываем метод загрузки файла:
 * PatchFile - путь к файлу
@@ -17,7 +17,7 @@
 * Password - пароль для шифрования главного файла (при загрузки больших файлов они разбиваются на части, эти части автоматически шифруются и все данные о частях хранятся в главном файле пароль которому задаётся пользователем. Если файл небольшой то пароль применяется к самому файлу)
 * massenge - можно указать метод для логирования  Massenge(string Text, ConsoleColor Color) где string Text это строка самого сообщения, а ConsoleColor Color перечисление цветов содержащиеся в стандартной библиотеке System
 
-'ResulUploadFileInfo InfoUpload = HendlerUploadFileClass.UploadFileHendler(string PatchFile, byte MaxFilesUpload = 1, string Password = null, FunctionAndSetting.Massenge massenge = null);'
+`ResulUploadFileInfo InfoUpload = HendlerUploadFileClass.UploadFileHendler(string PatchFile, byte MaxFilesUpload = 1, string Password = null, FunctionAndSetting.Massenge massenge = null);`
 
 В результате получаем ResulUploadFileInfo который содержит в себе:
 * UrlSave - Ссылка на сохранёный файл (или главный файл с инфой)
