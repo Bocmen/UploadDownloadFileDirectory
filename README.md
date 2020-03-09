@@ -50,7 +50,7 @@
 
 Если необходимо использовать другой сервис, то классы `UploadFile`, `DownloadFile` содержат в себе переменную `functionAndSetting` в которую помещается при инцилизации экземпляр класса `FunctionAndSetting` в котором вы можете переопределить такие методы как:
 * public virtual string Upload(byte[] File, string Name)
-  * Метод загружающий массив byyte[] на сервис и возвращает ссылку на загруженный файл
+  * Метод загружающий массив byte[] на сервис и возвращает ссылку на загруженный файл
 * public virtual string GetNameFile(string Url)
   * Метод получающий имя файла по его ссылке
 * public virtual byte[] GetFile(string Url)
