@@ -49,11 +49,11 @@
 Как говорилось информация хрантсся на сервисе [wdho.ru](https://wdho.ru), для рабоы с ним используется набор инсттрументов реализованный ранее [Посмотреть набор инструментов](https://github.com/Bocmen/UploadDownloadHendler_wdho.ru)
 
 Если необходимо использовать другой сервис, то классы `UploadFile`, `DownloadFile` содержат в себе переменную `functionAndSetting` в которую помещается при инцилизации экземпляр класса `FunctionAndSetting` в котором вы можете переопределить такие методы как:
-* public virtual string Upload(byte[] File, string Name)
+* `public virtual string Upload(byte[] File, string Name)`
   * Метод загружающий массив byte[] на сервис и возвращает ссылку на загруженный файл
-* public virtual string GetNameFile(string Url)
+* `public virtual string GetNameFile(string Url)`
   * Метод получающий имя файла по его ссылке
-* public virtual byte[] GetFile(string Url)
+* `public virtual byte[] GetFile(string Url)`
   * Метод скачивающий файл в виде массива byte[] по его ссылке
-* public virtual string GeyKeyFile(string Url)
+* `public virtual string GeyKeyFile(string Url)`
   * Метод получабщий личный индификотор файла по его ссылке
