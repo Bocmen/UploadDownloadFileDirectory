@@ -1,4 +1,14 @@
-﻿using System;
+﻿/*
+|
+|
+| vk.com      https://vk.com/denisivanov220
++----------------------------------------------
+| github.com  https://github.com/Bocmen
+|
+|
+*/
+
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -9,6 +19,13 @@ namespace UploadDownload7
 {
     namespace Core
     {
+        /// <summary>
+        /// Загрузка папок и файлов
+        /// </summary>
+        public class UploadDirectory
+        {
+
+        }
         /// <summary>
         /// Загрузка файла
         /// </summary>
@@ -106,7 +123,7 @@ namespace UploadDownload7
                     file.Close();
                     while (Count > 0) ;// Ждём загрузку оставшихся файлов
                     uploadFileInfo.Parts.Sort(new ShortStruct()); // Сортировка бд
-                                                                  //////////////////////////////   if (File.Exists(StateInfoPatchFile)) File.Delete(StateInfoPatchFile);
+                    if (File.Exists(StateInfoPatchFile)) File.Delete(StateInfoPatchFile);
                     if (massenge != null) massenge.Invoke("[Info] Файл успешно загружен", ConsoleColor.Green);
                     return new ResulUploadFileInfo { UrlSave = functionAndSetting.Upload(functionAndSetting.Compress(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(uploadFileInfo)), Password), "info"), InfoSave = false };
                 }

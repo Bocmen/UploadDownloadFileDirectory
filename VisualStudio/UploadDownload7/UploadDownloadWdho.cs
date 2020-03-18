@@ -1,11 +1,13 @@
 /*
 |
 |
-| Bocmen https://vk.com/denisivanov220
-+_____________________________________
+| vk.com      https://vk.com/denisivanov220
++----------------------------------------------
+| github.com  https://github.com/Bocmen
 |
 |
 */
+
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -415,7 +417,13 @@ namespace UploadDownloadWdho
             // Отсекаем ненужную часть Html
             Html = Html.Remove(0, Html.IndexOf("Размер файла:"));
             // Получаем размер файла
-            infoFile.Size = Convert.ToDouble(Html.Substring(Html.IndexOf(":") + 1, Html.IndexOf("MB") - (Html.IndexOf(":") + 1)).Replace('.', ','));
+            if (Html.Contains("MB")) {
+                infoFile.Size = Html.Substring(Html.IndexOf(":") + 1, Html.IndexOf("MB") - (Html.IndexOf(":") + 1)).Replace('.', ',');
+            }
+            else
+            {
+                infoFile.Size = Html.Substring(Html.IndexOf(":") + 1, Html.IndexOf("KB") - (Html.IndexOf(":") + 1)).Replace('.', ',');
+            }
             // Получение даты загрузки фйла
             infoFile.UploadData = Html.Remove(0, Html.IndexOf("Файл загружен"));
             infoFile.UploadData = infoFile.UploadData.Substring(infoFile.UploadData.IndexOf(":") + 1, infoFile.UploadData.IndexOf("<") - (infoFile.UploadData.IndexOf(":") + 1));
@@ -444,9 +452,9 @@ namespace UploadDownloadWdho
             /// </summary>
             public string NameFile;
             /// <summary>
-            /// Размер файла в MB
+            /// Размер файла
             /// </summary>
-            public double Size;
+            public string Size;
             /// <summary>
             /// Когда был загружен файл
             /// </summary>
