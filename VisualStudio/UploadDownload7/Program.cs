@@ -9,8 +9,10 @@ namespace UploadDownload7
         {
             Core.DownloadFile downloadFile = new Core.DownloadFile();
             Core.UploadFile uploadFile = new Core.UploadFile();
-         //  var Resul = uploadFile.UploadFileHendler(@"D:\Вн в кармане.rar", 20,"305", ConsoleWrite);
-            downloadFile.DownloadHendler("https://wdho.ru/576c", @"D:\Test", MaxFilesUpload: 20, Password: "305");
+            Core.UploadDirectory uploadDirectory = new Core.UploadDirectory();
+            //  var Resul = uploadFile.UploadFileHendler(@"D:\Вн в кармане.rar", 20,"305", ConsoleWrite);
+            //  downloadFile.DownloadHendler("https://wdho.ru/576c", @"D:\Test", MaxFilesUpload: 20, Password: "305");
+          var Resul =  uploadDirectory.UploadFolder(@"D:\Test",null,20, ConsoleWrite);
             while (true) Console.ReadKey();
         }
         // 5 гигов https://wdho.ru/576c

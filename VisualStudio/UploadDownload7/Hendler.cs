@@ -24,7 +24,106 @@ namespace UploadDownload7
         /// </summary>
         public class UploadDirectory
         {
-
+            /// <summary>
+            /// Набор функций для данного класа некоторые из них можно переопределить
+            /// </summary>
+            private FunctionAndSetting functionAndSetting = new FunctionAndSetting();
+            /// <summary>
+            /// Необходима для рандомного пароля
+            /// </summary>
+            private static Random random = new Random();
+            /// <summary>
+            /// Временный файл содержащий в себе состояние загрузки
+            /// </summary>
+            private string TemporaryFileInfoSaved;
+            /// <summary>
+            /// Загрузка файла или директории с файлами и папками
+            /// </summary>
+            /// <param name="Patch">Путь к файлу или директории</param>
+            /// <param name="Password">Пароль для шифрования</param>
+            /// <param name="MaxFilesUpload">Максимальное число одновременно загружающихся частей файла</param>
+            /// <param name="massenge">Метод для логирования</param>
+            /// <returns></returns>
+            public string UploadFolder(string Patch, string Password = null, byte MaxFilesUpload = 1, FunctionAndSetting.Massenge massenge = null)
+            {
+                FunctionAndSetting.BdDirectory Bd = new FunctionAndSetting.BdDirectory { UploadetFiles = new List<FunctionAndSetting.OneElemSaveDir>(0) };
+                UploadFile uploadFile = new UploadFile(ref functionAndSetting);
+                TemporaryFileInfoSaved = Path.Combine(Patch, Path.GetFileName(Patch) + ".InfoUpload");
+                if (File.Exists(TemporaryFileInfoSaved))
+                {
+                    string[] res = File.ReadAllText(TemporaryFileInfoSaved).Split("\r\n");
+                    for (long i = 1; i < res.LongLength; i++) Bd.UploadetFiles.Add(JsonConvert.DeserializeObject<FunctionAndSetting.OneElemSaveDir>(res[i]));
+                }
+                else File.WriteAllText(TemporaryFileInfoSaved, null);
+                string[] PatchSaves = GetFilesFolders(Patch).ToArray();
+                foreach (var Elem in PatchSaves)
+                {
+                    if (!CheckPartList(Bd.UploadetFiles, Path.GetFullPath(Elem).Replace(Path.GetFullPath(Patch), null)))
+                    {
+                        if (File.Exists(Elem))
+                        {
+                            FunctionAndSetting.OneElemSaveDir oneElem = new FunctionAndSetting.OneElemSaveDir { SaveDirectory = Path.GetFullPath(Elem).Replace(Path.GetFullPath(Patch), null), Password = random.Next(int.MinValue, int.MaxValue).ToString() };
+                            oneElem.ResulUploadFileInfo = uploadFile.UploadFileHendler(Elem, MaxFilesUpload, oneElem.Password, massenge);
+                            Bd.UploadetFiles.Add(oneElem);
+                        restAddDat: try { File.AppendAllText(TemporaryFileInfoSaved, "\r\n" + JsonConvert.SerializeObject(oneElem)); } catch { goto restAddDat; }
+                        }
+                        else if (Directory.Exists(Elem) && Directory.GetDirectories(Elem).Length <= 0) Bd.UploadetFiles.Add(new FunctionAndSetting.OneElemSaveDir { SaveDirectory = Path.GetFullPath(Elem).Replace(Path.GetFullPath(Patch), null) });
+                    }
+                }
+                string PatchFileSave = Path.Combine(Patch, random.Next(int.MinValue, int.MaxValue).ToString() + "." + random.Next(int.MinValue, int.MaxValue).ToString());
+                File.WriteAllText(PatchFileSave, JsonConvert.SerializeObject(Bd));
+                var Resul = uploadFile.UploadFileHendler(PatchFileSave, MaxFilesUpload, Password, massenge);
+                File.Delete(PatchFileSave);
+                File.Delete(TemporaryFileInfoSaved);
+                Console.WriteLine(Resul.UrlSave);
+                return Resul.UrlSave;
+            }
+            /// <summary>
+            /// Метод проверяющий надо ли загружать файл
+            /// 1 если он есть в бд "List<FunctionAndSetting.OneElemSaveDir> Elems" то файл не должен быть загружен
+            /// 2 если он является логом методов UploadFile или DownloadFile
+            /// </summary>
+            /// <param name="Elems"></param>
+            /// <param name="PatchSave"></param>
+            /// <returns></returns>
+            private bool CheckPartList(List<FunctionAndSetting.OneElemSaveDir> Elems, string PatchSave)
+            {
+                foreach (var Elem in Elems)
+                {
+                    if (Elem.SaveDirectory == PatchSave)
+                    {
+                        return true;
+                    }
+                }
+                if (PatchSave.Contains(FunctionAndSetting.ExpansionDownload) || PatchSave.Contains(FunctionAndSetting.ExpansionUpload))
+                {
+                    return true;
+                }
+                return false;
+            }
+            /// <summary>
+            /// Получение списка файлов и папок
+            /// </summary>
+            /// <param name="Patch"></param>
+            /// <returns></returns>
+            private List<string> GetFilesFolders(string Patch)
+            {
+                if (Directory.Exists(Patch))
+                {
+                    List<string> Dat = new List<string>();
+                    // Получение список файлов
+                    string[] all = Directory.GetFiles(Patch);
+                    Dat.AddRange(all);
+                    // Получение список папок
+                    all = Directory.GetDirectories(Patch);
+                    foreach (var Elem in all) Dat.AddRange(GetFilesFolders(Elem));
+                    if (Dat.Count > 0)
+                        return Dat;
+                    else
+                        return new List<string> { Patch };
+                }
+                else return new List<string> { Patch };
+            }
         }
         /// <summary>
         /// Загрузка файла
@@ -35,7 +134,7 @@ namespace UploadDownload7
             /// <summary>
             /// Набор функций для данного класа некоторые из них можно переопределить
             /// </summary>
-            public FunctionAndSetting functionAndSetting = new FunctionAndSetting();
+            private FunctionAndSetting functionAndSetting = new FunctionAndSetting();
             /// <summary>
             /// Необходима для рандомного пароля
             /// </summary>
@@ -57,12 +156,17 @@ namespace UploadDownload7
             /// Путь к временному файлу хранящитй в себе перечень успешнозагруженных файлов
             /// </summary>
             private string StateInfoPatchFile;
+            //==================================================== Инцилизация
+            public UploadFile(FunctionAndSetting functionAndSetting) { this.functionAndSetting = functionAndSetting; }
+            public UploadFile(ref FunctionAndSetting functionAndSetting) { this.functionAndSetting = functionAndSetting; }
+            public UploadFile() { }
             //==================================================== Методы
             public ResulUploadFileInfo UploadFileHendler(string PatchFile, byte MaxFilesUpload = 1, string Password = null, FunctionAndSetting.Massenge massenge = null)
             {
                 if (!File.Exists(PatchFile)) { if (massenge != null) massenge.Invoke("[Error] Такого пути к файлу не существует", ConsoleColor.Red); return new ResulUploadFileInfo(); }
                 this.MaxFilesUpload = MaxFilesUpload;
-                StateInfoPatchFile = Path.Combine(Path.GetDirectoryName(PatchFile), Path.GetFileName(PatchFile) + ".logUploadFile");
+                Count = 0;
+                StateInfoPatchFile = Path.Combine(Path.GetDirectoryName(PatchFile), Path.GetFileName(PatchFile) + FunctionAndSetting.ExpansionUpload);
                 uploadFileInfo = new UploadFileInfo { NameFale = Path.GetFileName(PatchFile), Parts = new List<DataSaveInfo>(0) };
                 // Проверяем если файл меньше одной части то сразу он сохраняется
                 if ((new System.IO.FileInfo(PatchFile)).Length <= (FunctionAndSetting.OneMb * functionAndSetting.MaxMbPart))
@@ -236,12 +340,14 @@ namespace UploadDownload7
             {
                 if (!Directory.Exists(PatchTo)) { if (massenge != null) massenge.Invoke("[Error] Такой директории не существует", ConsoleColor.Red); return; }
                 this.MaxFilesUpload = MaxFilesUpload;
+                Count = 0;
+                CountUploadetPart = 0;
                 // Качаем главный файл
                 byte[] FileHead = functionAndSetting.DeCompress(UploadDownloadWdho.Download.GetBytesFile(UrlFile), Password);
                 try
                 {
                     uploadFileInfo = JsonConvert.DeserializeObject<UploadFileInfo>(Encoding.UTF8.GetString(FileHead));
-                    FolderPart = Path.Combine(PatchTo, uploadFileInfo.NameFale + functionAndSetting.GeyKeyFile(UrlFile) + ".Folder");
+                    FolderPart = Path.Combine(PatchTo, uploadFileInfo.NameFale + functionAndSetting.GeyKeyFile(UrlFile) + FunctionAndSetting.ExpansionDownload);
                 reset:
                     try
                     {
@@ -252,9 +358,9 @@ namespace UploadDownload7
                             string[] allfiles = Directory.GetFiles(FolderPart);
                             foreach (var Elem in allfiles)
                             {
-                                if (Elem.Contains(".saved"))
+                                if (Elem.Contains(FunctionAndSetting.ExpansionDownload))
                                 {
-                                    string s = Path.GetFileName(Elem).Replace(".saved", null);
+                                    string s = Path.GetFileName(Elem).Replace(FunctionAndSetting.ExpansionDownload, null);
                                     IgnorePart.Add(s);
                                     OldIdSave = Math.Max(OldIdSave, Convert.ToInt64(s));
                                     CountUploadetPart++;
@@ -296,7 +402,7 @@ namespace UploadDownload7
             private void UploadPart()
             {
                 string s = Path.Combine(FolderPart, (OldIdSave + 1).ToString());
-                if (File.Exists(s + ".saved") && File.Exists(s))
+                if (File.Exists(s + FunctionAndSetting.ExpansionDownload) && File.Exists(s))
                 {
                     byte[] vs = File.ReadAllBytes(s);
                     file.Write(vs, 0, vs.Length);
@@ -312,7 +418,7 @@ namespace UploadDownload7
             private void DovnloadFile(DataSaveInfo dataSaveInfo)
             {
                 File.WriteAllBytes(Path.Combine(FolderPart, dataSaveInfo.FileIdName.ToString()), functionAndSetting.DeCompress(functionAndSetting.GetFile(dataSaveInfo.UrlFileID), dataSaveInfo.Password));
-                File.Create(Path.Combine(FolderPart, dataSaveInfo.FileIdName.ToString() + ".saved"));
+                File.Create(Path.Combine(FolderPart, dataSaveInfo.FileIdName.ToString() + FunctionAndSetting.ExpansionDownload));
                 Count--;
             }
         }
@@ -321,14 +427,24 @@ namespace UploadDownload7
         /// </summary>
         public class FunctionAndSetting
         {
-            /// <summary>
-            /// Делегат необходимый для логирования операции
-            /// </summary>
-            public delegate void Massenge(string Text, ConsoleColor Color);
+            //======================================================================== Константы
             /// <summary>
             /// Переменная хранящая кол во byyte в одном мегабайте
             /// </summary>
             public const uint OneMb = 1048576;
+            /// <summary>
+            /// Расширение файла с инфо о состоянии загрузки (Upload)
+            /// </summary>
+            public const string ExpansionUpload = ".logUploadFile";
+            /// <summary>
+            /// Расширегнеие файла и директории с инфо о состоянии загрузки (Download)
+            /// </summary>
+            public const string ExpansionDownload = ".logDownload";
+            //======================================================================== Переменные
+            /// <summary>
+            /// Делегат необходимый для логирования операции
+            /// </summary>
+            public delegate void Massenge(string Text, ConsoleColor Color);
             /// <summary>
             /// Название временной папки
             /// По умолчанию UploadDownload7TemporaryFolder
@@ -344,7 +460,7 @@ namespace UploadDownload7
             /// По умолчанию 5
             /// </summary>
             public byte MaxFilePrtRead = 5;
-
+            //======================================================================== Методы
             /// <summary>
             /// Шифровка массива паролем
             /// </summary>
@@ -445,6 +561,32 @@ namespace UploadDownload7
             public virtual string GeyKeyFile(string Url)
             {
                 return Url.Substring(Url.Replace('/', '\\').LastIndexOf('\\') + 1, Url.Length - Url.Replace('/', '\\').LastIndexOf('\\') - 1);
+            }
+            //========================================================================= Структуры
+            /// <summary>
+            /// Информация о загруженном файле
+            /// </summary>
+            public struct OneElemSaveDir
+            {
+                /// <summary>
+                /// Пароль к файлу
+                /// </summary>
+                public string Password;
+                /// <summary>
+                /// Информация о загруженной части (ссылка на неё и способ загрузки)
+                /// </summary>
+                public UploadFile.ResulUploadFileInfo ResulUploadFileInfo;
+                /// <summary>
+                /// Локальный путь к файлу
+                /// </summary>
+                public string SaveDirectory;
+            }
+            /// <summary>
+            /// Структура для сохранения целой директории
+            /// </summary>
+            public struct BdDirectory
+            {
+                public List<OneElemSaveDir> UploadetFiles;
             }
         }
         /// <summary>
