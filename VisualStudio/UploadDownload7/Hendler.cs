@@ -2,7 +2,7 @@
 |
 |
 | vk.com      https://vk.com/denisivanov220
-+----------------------------------------------
++---------------------------------------------- ProjectUrl https://github.com/Bocmen/UploadDownloadFileDirectory
 | github.com  https://github.com/Bocmen
 |
 |
@@ -20,7 +20,86 @@ namespace UploadDownload7
     namespace Core
     {
         /// <summary>
-        /// Загрузка папок и файлов
+        /// Скачивание файла или директории с файлами (Download)
+        /// </summary>
+        public class DownloadDirectory
+        {
+            /// <summary>
+            /// Набор функций для данного класа некоторые из них можно переопределить
+            /// </summary>
+            private FunctionAndSetting functionAndSetting = new FunctionAndSetting();
+            /// <summary>
+            /// Временный файл содержащий в себе состояние загрузки
+            /// </summary>
+            private string TemporaryFileInfoSaved;
+
+            public void Download(string Patch, string UrlFile, string Password = null, byte MaxFilesUpload = 1, FunctionAndSetting.Massenge massenge = null)
+            {
+                if (!Directory.Exists(Patch)) { if (massenge != null) massenge.Invoke("[-] Неправильно указан путь к директории\r\n", ConsoleColor.Red); return; }
+                // Качаем главный файл
+                try
+                {
+                    FunctionAndSetting.BdDirectory bdDirectory = JsonConvert.DeserializeObject<FunctionAndSetting.BdDirectory>(Encoding.UTF8.GetString(functionAndSetting.DeCompress(functionAndSetting.Download(UrlFile), Password)));
+                    if (bdDirectory.UploadetFiles.Count <= 0)
+                    {
+                        if (massenge != null) massenge.Invoke("[Error] Ошибка получения главного файла", ConsoleColor.Red);
+                        return;
+                    }
+                    else
+                    {
+                        TemporaryFileInfoSaved = Path.Combine(Patch, functionAndSetting.GetKeyFile(UrlFile) + FunctionAndSetting.ExpansionDownloadDirectory);
+                        List<string> maskDownload = new List<string>(0);
+                        if (File.Exists(TemporaryFileInfoSaved))
+                        {
+                            string[] res = File.ReadAllText(TemporaryFileInfoSaved).Split("\r\n");
+                            for (long i = 1; i < res.LongLength; i++) maskDownload.Add(res[i]);
+                        }
+                        else File.WriteAllText(TemporaryFileInfoSaved, null);
+                        DownloadFile downloadFile = new DownloadFile(functionAndSetting);
+                        foreach (var Elem in bdDirectory.UploadetFiles)
+                        {
+                            if (!maskDownload.Contains(Elem.ResulUploadFileInfo.UrlSave)) {
+                                // Проверяем является запись пустой папкой
+                                if (Elem.ResulUploadFileInfo.UrlSave == null)
+                                {
+                                    Directory.CreateDirectory((Elem.SaveDirectory != null && Elem.SaveDirectory.Length > 0 && Elem.SaveDirectory.Replace('/', '\\')[0] == '\\') ? Path.Combine(Patch, Elem.SaveDirectory.Remove(0, 1)) : Path.Combine(Patch, Elem.SaveDirectory));
+                                }
+                                else
+                                {
+                                    string PatchSave = GetPatchLocal(Elem.SaveDirectory) != null ? Path.Combine(Patch, GetPatchLocal(Elem.SaveDirectory)) : Patch;
+                                    Directory.CreateDirectory(PatchSave);
+                                    downloadFile.DownloadHendler(Elem.ResulUploadFileInfo.UrlSave, PatchSave, Path.GetFileName(Elem.SaveDirectory), MaxFilesUpload, Elem.Password, massenge);
+                                }
+                            resSevInfo: try { File.AppendAllText(TemporaryFileInfoSaved, "\r\n" + Elem.ResulUploadFileInfo.UrlSave); } catch { goto resSevInfo; }
+                            }
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    if (massenge != null) massenge.Invoke("[Error] Ошибка получения главного файла", ConsoleColor.Red);
+                    return;
+                }
+            }
+
+            private string GetPatchLocal(string Patch)
+            {
+                if (!(Patch.Contains('\\') || Patch.Contains('/')))
+                {
+                    return null;
+                }
+                else
+                {
+                    Patch = Patch.Replace('/', '\\');
+                    string s = Patch.Substring(0, Patch.LastIndexOf('\\'));
+                    s = s == "" ? null : s;
+                    if (s != null && s.Length >= 0 && s[0] == '\\') s = s.Remove(0, 1);
+                    return s == "" ? null : s;
+                }
+            }
+        }
+        /// <summary>
+        /// Загрузка папок и файлов (Upload)
         /// </summary>
         public class UploadDirectory
         {
@@ -48,7 +127,7 @@ namespace UploadDownload7
             {
                 FunctionAndSetting.BdDirectory Bd = new FunctionAndSetting.BdDirectory { UploadetFiles = new List<FunctionAndSetting.OneElemSaveDir>(0) };
                 UploadFile uploadFile = new UploadFile(ref functionAndSetting);
-                TemporaryFileInfoSaved = Path.Combine(Patch, Path.GetFileName(Patch) + ".InfoUpload");
+                TemporaryFileInfoSaved = Path.Combine(Patch, Path.GetFileName(Patch) + FunctionAndSetting.ExpansionUploadDirectory);
                 if (File.Exists(TemporaryFileInfoSaved))
                 {
                     string[] res = File.ReadAllText(TemporaryFileInfoSaved).Split("\r\n");
@@ -70,13 +149,8 @@ namespace UploadDownload7
                         else if (Directory.Exists(Elem) && Directory.GetDirectories(Elem).Length <= 0) Bd.UploadetFiles.Add(new FunctionAndSetting.OneElemSaveDir { SaveDirectory = Path.GetFullPath(Elem).Replace(Path.GetFullPath(Patch), null) });
                     }
                 }
-                string PatchFileSave = Path.Combine(Patch, random.Next(int.MinValue, int.MaxValue).ToString() + "." + random.Next(int.MinValue, int.MaxValue).ToString());
-                File.WriteAllText(PatchFileSave, JsonConvert.SerializeObject(Bd));
-                var Resul = uploadFile.UploadFileHendler(PatchFileSave, MaxFilesUpload, Password, massenge);
-                File.Delete(PatchFileSave);
                 File.Delete(TemporaryFileInfoSaved);
-                Console.WriteLine(Resul.UrlSave);
-                return Resul.UrlSave;
+                return functionAndSetting.Upload(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(Bd)), "info.txt");
             }
             /// <summary>
             /// Метод проверяющий надо ли загружать файл
@@ -88,17 +162,8 @@ namespace UploadDownload7
             /// <returns></returns>
             private bool CheckPartList(List<FunctionAndSetting.OneElemSaveDir> Elems, string PatchSave)
             {
-                foreach (var Elem in Elems)
-                {
-                    if (Elem.SaveDirectory == PatchSave)
-                    {
-                        return true;
-                    }
-                }
-                if (PatchSave.Contains(FunctionAndSetting.ExpansionDownload) || PatchSave.Contains(FunctionAndSetting.ExpansionUpload))
-                {
-                    return true;
-                }
+                foreach (var Elem in Elems) if (Elem.SaveDirectory == PatchSave) return true;
+                if (PatchSave.Contains(FunctionAndSetting.ExpansionDownload) || PatchSave.Contains(FunctionAndSetting.ExpansionUpload) || PatchSave.Contains(FunctionAndSetting.ExpansionUploadDirectory) || PatchSave.Contains(FunctionAndSetting.ExpansionDownloadDirectory)) return true;
                 return false;
             }
             /// <summary>
@@ -308,12 +373,15 @@ namespace UploadDownload7
             /// <summary>
             /// Набор функций для данного класа некоторые из них можно переопределить
             /// </summary>
-            public FunctionAndSetting functionAndSetting = new FunctionAndSetting();
+            private FunctionAndSetting functionAndSetting = new FunctionAndSetting();
             //==================================================== Данные необходимые для работы
             /// <summary>
             /// Бд файла содержит в себе ссылки на все части файла его название и.т.д (для более подробного ознакомления смотри структуру)
             /// </summary>
             private UploadFileInfo uploadFileInfo;
+            /// <summary>
+            /// Предыдущий Id части файла
+            /// </summary>
             private long OldIdSave = long.MinValue;
             /// <summary>
             /// Текущие количество загружеемых одновременно файлов
@@ -335,6 +403,10 @@ namespace UploadDownload7
             /// Количество уже загруженных файлов
             /// </summary>
             private int CountUploadetPart = 0;
+            ///=================================================== Инцилизация
+            public DownloadFile(FunctionAndSetting functionAndSetting) { this.functionAndSetting = functionAndSetting; }
+            public DownloadFile(ref FunctionAndSetting functionAndSetting) { this.functionAndSetting = functionAndSetting; }
+            public DownloadFile() { }
             //==================================================== Методы
             public void DownloadHendler(string UrlFile, string PatchTo, string NameFile = null, byte MaxFilesUpload = 1, string Password = null, FunctionAndSetting.Massenge massenge = null)
             {
@@ -347,22 +419,20 @@ namespace UploadDownload7
                 try
                 {
                     uploadFileInfo = JsonConvert.DeserializeObject<UploadFileInfo>(Encoding.UTF8.GetString(FileHead));
-                    FolderPart = Path.Combine(PatchTo, uploadFileInfo.NameFale + functionAndSetting.GeyKeyFile(UrlFile) + FunctionAndSetting.ExpansionDownload);
-                reset:
+                    FolderPart = Path.Combine(PatchTo, uploadFileInfo.NameFale + functionAndSetting.GetKeyFile(UrlFile) + FunctionAndSetting.ExpansionDownload);
                     try
                     {
                         List<string> IgnorePart = new List<string>(0);
-
                         if (Directory.Exists(FolderPart))
                         {
                             string[] allfiles = Directory.GetFiles(FolderPart);
                             foreach (var Elem in allfiles)
                             {
-                                if (Elem.Contains(FunctionAndSetting.ExpansionDownload))
+                                if (Path.GetFileName(Elem).Contains(FunctionAndSetting.ExpansionDownload))
                                 {
                                     string s = Path.GetFileName(Elem).Replace(FunctionAndSetting.ExpansionDownload, null);
                                     IgnorePart.Add(s);
-                                    OldIdSave = Math.Max(OldIdSave, Convert.ToInt64(s));
+                                    if(!File.Exists(Path.Combine(FolderPart, s)))  OldIdSave = Math.Max(OldIdSave, Convert.ToInt64(s));
                                     CountUploadetPart++;
                                 }
                             }
@@ -374,6 +444,13 @@ namespace UploadDownload7
                         else
                             file = new FileStream(Path.Combine(PatchTo, uploadFileInfo.NameFale), FileMode.OpenOrCreate);
 
+                        long FileSize = 0;
+                        foreach (var Elem in uploadFileInfo.Parts) FileSize += Elem.Size;
+                        if (FileSize== file.Length)
+                        {
+                            return;
+                        }
+
                         foreach (var Elem in uploadFileInfo.Parts)
                         {
                             if (IgnorePart.Contains(Elem.FileIdName.ToString())) { if (massenge != null) massenge.Invoke("[Info] Файл был ранее загружен", ConsoleColor.Green); continue; }
@@ -382,7 +459,7 @@ namespace UploadDownload7
                             Task.Run(() => DovnloadFile(Elem));
                         }
                         while (Count > 0 || CountUploadetPart != uploadFileInfo.Parts.Count) UploadPart();// Ждём загрузку оставшихся файлов
-                        Directory.Delete(FolderPart, true);
+                        restDel: try { Directory.Delete(FolderPart, true); } catch { goto restDel; }
                         file.Close();
                     }
                     catch (Exception e)
@@ -390,7 +467,7 @@ namespace UploadDownload7
                         Console.WriteLine(e.Message);
                     }
                 }
-                catch
+                catch (Exception e)
                 {
                     File.WriteAllBytes(((NameFile == null) ? Path.Combine(PatchTo, functionAndSetting.GetNameFile(UrlFile)) : Path.Combine(PatchTo, NameFile)), FileHead);
                 }
@@ -417,7 +494,7 @@ namespace UploadDownload7
             /// <param name="dataSaveInfo">Информация о загружаемой части</param>
             private void DovnloadFile(DataSaveInfo dataSaveInfo)
             {
-                File.WriteAllBytes(Path.Combine(FolderPart, dataSaveInfo.FileIdName.ToString()), functionAndSetting.DeCompress(functionAndSetting.GetFile(dataSaveInfo.UrlFileID), dataSaveInfo.Password));
+                File.WriteAllBytes(Path.Combine(FolderPart, dataSaveInfo.FileIdName.ToString()), functionAndSetting.DeCompress(functionAndSetting.Download(dataSaveInfo.UrlFileID), dataSaveInfo.Password));
                 File.Create(Path.Combine(FolderPart, dataSaveInfo.FileIdName.ToString() + FunctionAndSetting.ExpansionDownload));
                 Count--;
             }
@@ -440,6 +517,14 @@ namespace UploadDownload7
             /// Расширегнеие файла и директории с инфо о состоянии загрузки (Download)
             /// </summary>
             public const string ExpansionDownload = ".logDownload";
+            /// <summary>
+            /// Расширегнеие файла с инфо о состоянии загрузки директории (UploadDirectory)
+            /// </summary>
+            public const string ExpansionUploadDirectory = ".lofInfoUploadDir";
+            /// <summary>
+            /// Расширегнеие файла с инфо о состоянии загрузки директории (DownloadDirectory)
+            /// </summary>
+            public const string ExpansionDownloadDirectory = ".lofInfoDownloadDir";
             //======================================================================== Переменные
             /// <summary>
             /// Делегат необходимый для логирования операции
@@ -540,7 +625,7 @@ namespace UploadDownload7
             /// </summary>
             /// <param name="Url">Ссылка нна файл</param>
             /// <returns>Файл в виде массмва byte</returns>
-            public virtual byte[] GetFile(string Url)
+            public virtual byte[] Download(string Url)
             {
                 return UploadDownloadWdho.Download.GetBytesFile(Url);
             }
@@ -558,7 +643,7 @@ namespace UploadDownload7
             /// </summary>
             /// <param name="Url">Ссылка на файл</param>
             /// <returns>Личный индификатор</returns>
-            public virtual string GeyKeyFile(string Url)
+            public virtual string GetKeyFile(string Url)
             {
                 return Url.Substring(Url.Replace('/', '\\').LastIndexOf('\\') + 1, Url.Length - Url.Replace('/', '\\').LastIndexOf('\\') - 1);
             }
