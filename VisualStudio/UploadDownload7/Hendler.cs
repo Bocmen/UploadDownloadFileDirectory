@@ -331,10 +331,6 @@ namespace UploadDownload7
                     dataSaveInfo.Size = vs.LongLength;
                     // Добавляем информацию в общию бд
                     uploadFileInfo.Parts.Add(dataSaveInfo);
-                    // Уменьшаем значение загружаемых на данный момент файлов
-                    Count--;
-                    // Оповещание о загрузке файла
-                    if (massenge != null) massenge.Invoke("Загружен файл с ID: " + dataSaveInfo.FileIdName, ConsoleColor.Gray);
                     restTwo:
                     try
                     {
@@ -344,6 +340,10 @@ namespace UploadDownload7
                     {
                         goto restTwo;
                     }
+                    // Уменьшаем значение загружаемых на данный момент файлов
+                    Count--;
+                    // Оповещание о загрузке файла
+                    if (massenge != null) massenge.Invoke("Загружен файл с ID: " + dataSaveInfo.FileIdName, ConsoleColor.Gray);
                 }
                 catch (Exception e)
                 {
