@@ -58,7 +58,8 @@ namespace UploadDownload7
                         DownloadFile downloadFile = new DownloadFile(functionAndSetting);
                         foreach (var Elem in bdDirectory.UploadetFiles)
                         {
-                            if (!maskDownload.Contains(Elem.ResulUploadFileInfo.UrlSave)) {
+                            if (!maskDownload.Contains(Elem.ResulUploadFileInfo.UrlSave))
+                            {
                                 // Проверяем является запись пустой папкой
                                 if (Elem.ResulUploadFileInfo.UrlSave == null)
                                 {
@@ -74,6 +75,7 @@ namespace UploadDownload7
                             }
                         }
                     }
+                resDel: try { if (File.Exists(TemporaryFileInfoSaved)) File.Delete(TemporaryFileInfoSaved); } catch { goto resDel; }
                 }
                 catch (Exception e)
                 {
@@ -292,7 +294,7 @@ namespace UploadDownload7
                     file.Close();
                     while (Count > 0) ;// Ждём загрузку оставшихся файлов
                     uploadFileInfo.Parts.Sort(new ShortStruct()); // Сортировка бд
-                    if (File.Exists(StateInfoPatchFile)) File.Delete(StateInfoPatchFile);
+                restDel: if (File.Exists(StateInfoPatchFile)) { try { File.Delete(StateInfoPatchFile); goto restDel; } catch { goto restDel; } }
                     if (massenge != null) massenge.Invoke("[Info] Файл успешно загружен", ConsoleColor.Green);
                     return new ResulUploadFileInfo { UrlSave = functionAndSetting.Upload(functionAndSetting.Compress(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(uploadFileInfo)), Password), "info"), InfoSave = false };
                 }
@@ -326,14 +328,14 @@ namespace UploadDownload7
                 {
                     // Записываем данные
                     dataSaveInfo.UrlFileID = functionAndSetting.Upload(vs, dataSaveInfo.FileIdName.ToString());
+                    dataSaveInfo.Size = vs.LongLength;
                     // Добавляем информацию в общию бд
                     uploadFileInfo.Parts.Add(dataSaveInfo);
                     // Уменьшаем значение загружаемых на данный момент файлов
                     Count--;
                     // Оповещание о загрузке файла
                     if (massenge != null) massenge.Invoke("Загружен файл с ID: " + dataSaveInfo.FileIdName, ConsoleColor.Gray);
-                    dataSaveInfo.Size = vs.LongLength;
-                restTwo:
+                    restTwo:
                     try
                     {
                         File.AppendAllText(StateInfoPatchFile, JsonConvert.SerializeObject(dataSaveInfo) + "\r\n");
@@ -432,7 +434,7 @@ namespace UploadDownload7
                                 {
                                     string s = Path.GetFileName(Elem).Replace(FunctionAndSetting.ExpansionDownload, null);
                                     IgnorePart.Add(s);
-                                    if(!File.Exists(Path.Combine(FolderPart, s)))  OldIdSave = Math.Max(OldIdSave, Convert.ToInt64(s));
+                                    if (!File.Exists(Path.Combine(FolderPart, s))) OldIdSave = Math.Max(OldIdSave, Convert.ToInt64(s));
                                     CountUploadetPart++;
                                 }
                             }
@@ -446,8 +448,9 @@ namespace UploadDownload7
 
                         long FileSize = 0;
                         foreach (var Elem in uploadFileInfo.Parts) FileSize += Elem.Size;
-                        if (FileSize== file.Length)
+                        if (FileSize == file.Length)
                         {
+                            if (Directory.Exists(FolderPart)) { restDelO: try { Directory.Delete(FolderPart, true); } catch { goto restDelO; } }
                             return;
                         }
 

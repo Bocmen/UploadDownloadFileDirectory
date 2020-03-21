@@ -13,8 +13,8 @@ namespace UploadDownload7
             Core.DownloadDirectory downloadDirectory = new Core.DownloadDirectory();
             //  var Resul = uploadFile.UploadFileHendler(@"D:\Вн в кармане.rar", 20,"305", ConsoleWrite);
             //  downloadFile.DownloadHendler("https://wdho.ru/576c", @"D:\Test", MaxFilesUpload: 20, Password: "305");
-            // var Resul =  uploadDirectory.UploadFolder(@"C:\Users\den20\Videos\Grand Theft Auto V\Новая папка", null,5, ConsoleWrite);
-              downloadDirectory.Download(@"D:\dfd", "https://wdho.ru/58um", null, 2, ConsoleWrite);
+             var Resul =  uploadDirectory.UploadFolder(@"C:\Users\den20\Videos\Grand Theft Auto V", "1",10, ConsoleWrite);
+            //  downloadDirectory.Download(@"D:\dfd", "https://wdho.ru/dwVq", null, 2, ConsoleWrite);
             while (true) Console.ReadKey();
         }
         // 5 гигов https://wdho.ru/576c
