@@ -294,7 +294,7 @@ namespace UploadDownload7
                     file.Close();
                     while (Count > 0) ;// Ждём загрузку оставшихся файлов
                     uploadFileInfo.Parts.Sort(new ShortStruct()); // Сортировка бд
-                restDel: if (File.Exists(StateInfoPatchFile)) { try { File.Delete(StateInfoPatchFile); goto restDel; } catch { goto restDel; } }
+                restDel: if (File.Exists(StateInfoPatchFile)) { try { File.Delete(StateInfoPatchFile); } catch { goto restDel; } }
                     if (massenge != null) massenge.Invoke("[Info] Файл успешно загружен", ConsoleColor.Green);
                     return new ResulUploadFileInfo { UrlSave = functionAndSetting.Upload(functionAndSetting.Compress(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(uploadFileInfo)), Password), "info"), InfoSave = false };
                 }
