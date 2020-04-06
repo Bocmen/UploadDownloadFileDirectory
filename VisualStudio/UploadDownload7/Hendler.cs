@@ -40,7 +40,11 @@ namespace UploadDownload7
 
             public string UploadFolder(string Patch, string Password = null, byte MaxFilesUpload = 1, FunctionAndSetting.Massenge massenge = null)
             {
-
+                BdDirectory Bd = new BdDirectory { UploadetFiles = new List<OneElemSaveDir>(0) };
+                UploadFile uploadFile = new UploadFile(ref functionAndSetting);
+                TemporaryFileInfoSaved = Path.Combine(functionAndSetting.GetPatch(), Path.GetFileName(Patch) + FunctionAndSetting.ExpansionUploadDirectory);
+                // Преверяем если загружалась ли папка неудачно ранее
+                return null;
             }
 
             /// <summary>
@@ -162,6 +166,7 @@ namespace UploadDownload7
             /// Необходима для рандомного пароля
             /// </summary>
             private static Random random = new Random();
+            private Loget loget;
             //==================================================== Данные необходимые для работы
             /// <summary>
             /// Бд файла содержит в себе ссылки на все части файла его название и.т.д (для более подробного ознакомления смотри структуру)
@@ -175,21 +180,16 @@ namespace UploadDownload7
             /// Максимальное число одновременно загружаемых файлов
             /// </summary>
             private byte MaxFilesUpload = 1;
-            /// <summary>
-            /// Путь к временному файлу хранящитй в себе перечень успешнозагруженных файлов
-            /// </summary>
-            private string StateInfoPatchFile;
             //==================================================== Инцилизация
-            public UploadFile(FunctionAndSetting functionAndSetting) { this.functionAndSetting = functionAndSetting; }
-            public UploadFile(ref FunctionAndSetting functionAndSetting) { this.functionAndSetting = functionAndSetting; }
-            public UploadFile() { }
+            public UploadFile(FunctionAndSetting functionAndSetting) { this.functionAndSetting = functionAndSetting; loget = new Loget(functionAndSetting); }
+            public UploadFile(ref FunctionAndSetting functionAndSetting) { this.functionAndSetting = functionAndSetting; loget = new Loget(functionAndSetting); }
+            public UploadFile() { loget = new Loget(functionAndSetting); }
             //==================================================== Методы
             public ResulUploadFileInfo UploadFileHendler(string PatchFile, byte MaxFilesUpload = 1, string Password = null, FunctionAndSetting.Massenge massenge = null)
             {
                 if (!File.Exists(PatchFile)) { if (massenge != null) massenge.Invoke("[Error] Такого пути к файлу не существует", ConsoleColor.Red); return new ResulUploadFileInfo(); }
                 this.MaxFilesUpload = MaxFilesUpload;
                 Count = 0;
-                StateInfoPatchFile = Path.Combine(Path.GetDirectoryName(PatchFile), Path.GetFileName(PatchFile) + FunctionAndSetting.ExpansionUpload);
                 uploadFileInfo = new UploadFileInfo { NameFale = Path.GetFileName(PatchFile), Parts = new List<DataSaveInfo>(0) };
                 // Проверяем если файл меньше одной части то сразу он сохраняется
                 if ((new System.IO.FileInfo(PatchFile)).Length <= (FunctionAndSetting.OneMb * functionAndSetting.MaxMbPart))
@@ -199,6 +199,7 @@ namespace UploadDownload7
                 }
                 else
                 {
+                    //  loget.GenereteName(Path.GetFileName(PatchFile), 30, Path.Combine(Path.GetDirectoryName(PatchFile), Path.GetFileName(PatchFile) + FunctionAndSetting.ExpansionUpload));
                     // Запуск потока чтения основного файла который будет разбит
                     FileStream file = new FileStream(PatchFile, FileMode.Open);
                     // Необходимо чтобы индифицировать части
@@ -208,14 +209,14 @@ namespace UploadDownload7
                     // Сколько раз нужно пройтись по файлу чтобы считать одну часть
                     long count = (long)((@byte % (FunctionAndSetting.OneMb * functionAndSetting.MaxFilePrtRead) > 0) ? (long)(@byte / (FunctionAndSetting.OneMb * functionAndSetting.MaxFilePrtRead)) + 1 : (long)(@byte / (FunctionAndSetting.OneMb * functionAndSetting.MaxFilePrtRead)));
                     if (massenge != null) massenge.Invoke(String.Format("[Info] Файл будет разбит на {0} частей", (file.Length % (FunctionAndSetting.OneMb * functionAndSetting.MaxMbPart) > 0 ? file.Length / (FunctionAndSetting.OneMb * functionAndSetting.MaxMbPart) + 1 : file.Length / (FunctionAndSetting.OneMb * functionAndSetting.MaxMbPart))), ConsoleColor.Blue);
-
-                    if (File.Exists(StateInfoPatchFile))
+                    // Проверяем какие файлы были рание загруженны
+                    if (loget.SearchName(Path.GetFileName(PatchFile), FunctionAndSetting.TimeLiveFilesLog, Path.Combine(Path.GetDirectoryName(PatchFile), Path.GetFileName(PatchFile) + FunctionAndSetting.ExpansionUpload)))
                     {
-
-                        string[] PartInfo = File.ReadAllText(StateInfoPatchFile).Split("\r\n");
+                    resUpdTimeLog: if (!loget.UpdTime()) goto resUpdTimeLog;
+                        string[] PartInfo = loget.GetListData();
                         if (PartInfo[0] == @byte.ToString())
                         {
-                            for (long i = 1; i < (PartInfo.LongLength - 1); i++)
+                            for (long i = 1; i < PartInfo.LongLength; i++)
                             {
                                 uploadFileInfo.Parts.Add(JsonConvert.DeserializeObject<DataSaveInfo>(PartInfo[i]));
                                 if (massenge != null) massenge.Invoke("[Info] Ранее эта часть была загружена восстанавливаю данные", ConsoleColor.Green);
@@ -224,9 +225,9 @@ namespace UploadDownload7
                     }
                     else
                     {
-                        File.WriteAllText(StateInfoPatchFile, @byte + "\r\n");
+                        loget.GenereteName(Path.GetFileName(PatchFile), FunctionAndSetting.TimeLiveFilesLog, Path.Combine(Path.GetDirectoryName(PatchFile), Path.GetFileName(PatchFile) + FunctionAndSetting.ExpansionUpload));
+                        loget.AddData(@byte.ToString());
                     }
-
                     // Разбитие на файлы
                     while (file.Position < file.Length - 1)
                     {
@@ -245,12 +246,11 @@ namespace UploadDownload7
                         while (Count >= MaxFilesUpload - 1) ; // Ждем своей очереди загрузки
                         Count++;
                         Task.Run(() => HendlerUpload(dataSaveInfo, functionAndSetting.Compress(BtPart.ToArray(), dataSaveInfo.Password), massenge));
-                        //function.Compress();
                     }
                     file.Close();
                     while (Count > 0) ;// Ждём загрузку оставшихся файлов
                     uploadFileInfo.Parts.Sort(new ShortStruct()); // Сортировка бд
-                restDel: if (File.Exists(StateInfoPatchFile)) { try { File.Delete(StateInfoPatchFile); } catch { goto restDel; } }
+                    loget.Delite();
                     if (massenge != null) massenge.Invoke("[Info] Файл успешно загружен", ConsoleColor.Green);
                     return new ResulUploadFileInfo { UrlSave = functionAndSetting.Upload(functionAndSetting.Compress(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(uploadFileInfo)), Password), "info"), InfoSave = false };
                 }
@@ -287,15 +287,7 @@ namespace UploadDownload7
                     dataSaveInfo.Size = vs.LongLength;
                     // Добавляем информацию в общию бд
                     uploadFileInfo.Parts.Add(dataSaveInfo);
-                    restTwo:
-                    try
-                    {
-                        File.AppendAllText(StateInfoPatchFile, JsonConvert.SerializeObject(dataSaveInfo) + "\r\n");
-                    }
-                    catch
-                    {
-                        goto restTwo;
-                    }
+                restTwo: if (!loget.AddData(JsonConvert.SerializeObject(dataSaveInfo))) goto restTwo;
                     // Уменьшаем значение загружаемых на данный момент файлов
                     Count--;
                     // Оповещание о загрузке файла
@@ -470,7 +462,15 @@ namespace UploadDownload7
             /// Расширегнеие файла с инфо о состоянии загрузки директории (DownloadDirectory)
             /// </summary>
             public const string ExpansionDownloadDirectory = ".lofInfoDownloadDir";
+            /// <summary>
+            /// Время жизни временных файлов
+            /// </summary>
+            public const ulong TimeLiveFilesLog = 20; // минут
             //======================================================================== Переменные
+            /// <summary>
+            /// Для генерации рандомной строки
+            /// </summary>
+            private static Random random = new Random();
             /// <summary>
             /// Делегат необходимый для логирования операции
             /// </summary>
@@ -491,6 +491,22 @@ namespace UploadDownload7
             /// </summary>
             public byte MaxFilePrtRead = 5;
             //======================================================================== Методы
+            /// <summary>
+            /// Генерация рандомной строки
+            /// </summary>
+            /// <param name="Leng">Длина строки</param>
+            /// <param name="RandChars">Из каких символов она будет состоять</param>
+            /// <returns></returns>
+            public virtual string GenerateRandomString(byte Leng = 5, string RandChars = "qQwWeErRtTyYuUiIoOpPaAsSdDfFgGhHjJkKlLzZxXcCvVbBnNmM1234567890")
+            {
+                if (RandChars == null || RandChars == "") return null;
+                string res = "";
+                for (byte i = 0; i < Leng; i++)
+                {
+                    res += RandChars[random.Next(0, RandChars.Length)];
+                }
+                return res;
+            }
             /// <summary>
             /// Шифровка массива паролем
             /// </summary>
@@ -609,6 +625,222 @@ namespace UploadDownload7
                     return -1;
                 }
                 return 0;
+            }
+        }
+        /// <summary>
+        /// Данный класс служит средством для записи текущего состояния загрузки
+        /// </summary>
+        public class Loget
+        {
+            private string Name;
+            private FunctionAndSetting function;
+            const string expansion = ".log";
+
+            /// <summary>
+            /// Инцилизация логов
+            /// </summary>
+            /// <param name="Name">что то типо личного ключа</param>
+            public Loget(ref FunctionAndSetting function)
+            {
+                this.function = function;
+            }
+            /// <summary>
+            /// Инцилизация логов
+            /// </summary>
+            /// <param name="Name">что то типо личного ключа</param>
+            public Loget(FunctionAndSetting function)
+            {
+                this.function = function;
+            }
+            /// <summary>
+            /// Создание временного места хранения логов
+            /// </summary>
+            /// <param name="Name"></param>
+            /// <returns></returns>
+            public virtual string GenereteName(string Name = null, ulong DeliteMinute = 20, string Check = null)
+            {
+                string Patch = Path.Combine(function.GetPatch(), Name);
+                if (!Directory.Exists(Patch))
+                {
+                    Directory.CreateDirectory(Patch);
+                    File.WriteAllText(Path.Combine(Patch, "DateTimeInfo.txt"), DateTime.Now.ToString("HH-mm-ss-dd-MM-yyyy") + "\r\n###" + DeliteMinute + "\r\n###" + Name + "\r\n###" + Check);
+                    this.Name = Patch;
+                    return Patch;
+                }
+            Res:
+                Patch = Path.Combine(function.GetPatch(), string.Format("{0}DEN{1}", function.GenerateRandomString(), Name));
+                if (!Directory.Exists(Patch))
+                {
+                    Directory.CreateDirectory(Patch);
+                    File.WriteAllText(Path.Combine(Patch, "DateTimeInfo.txt"), DateTime.Now.ToString("HH-mm-ss-dd-MM-yyyy") + "\r\n###" + DeliteMinute + "\r\n###" + Name + "\r\n###" + Check);
+                    this.Name = Patch;
+                    return Patch;
+                }
+                else goto Res;
+            }
+            /// <summary>
+            /// Удаление данных
+            /// </summary>
+            /// <returns></returns>
+            public virtual bool Delite()
+            {
+                try
+                {
+                    Directory.Delete(Name, true);
+                    return true;
+                }
+                catch { return false; }
+            }
+            /// <summary>
+            /// Добавление новых данных к существующим
+            /// </summary>
+            /// <param name="Data">Данные</param>
+            /// <param name="Key">Ключ</param>
+            /// <returns></returns>
+            public virtual bool AddData(string Data, string Key = "null")
+            {
+                try
+                {
+                    CheckAndAddNewKey(Key);
+                    File.AppendAllText(Path.Combine(Name, Key + expansion), "\r\n#: " + Data);
+                    return true;
+                }
+                catch { return false; }
+            }
+            /// <summary>
+            /// Запись данных (перезаписывает имеющиеся)
+            /// </summary>
+            /// <param name="Data">Данные</param>
+            /// <param name="Key">Ключ</param>
+            /// <returns></returns>
+            public virtual bool SetDAta(string Data, string Key = "null")
+            {
+                try
+                {
+                    CheckAndAddNewKey(Key);
+                    File.AppendAllText(Path.Combine(Name, Key + expansion), Data);
+                    return true;
+                }
+                catch { return false; }
+            }
+            /// <summary>
+            /// Проверяет есть ли такой ключ и при его отсутствии создаёт его
+            /// </summary>
+            /// <param name="Key">Ключ</param>
+            /// <returns></returns>
+            public virtual void CheckAndAddNewKey(string Key)
+            {
+                if (!CheckKey(Key)) File.WriteAllText(Path.Combine(Name, Key + expansion), null);
+            }
+            /// <summary>
+            /// Получение данных
+            /// </summary>
+            /// <param name="Key"></param>
+            /// <returns></returns>
+            public virtual string[] GetListData(string Key = "null")
+            {
+                if (!CheckKey(Key)) return null;
+                try
+                {
+                    string fl = File.ReadAllText(Path.Combine(Name, Key + expansion));
+                    List<string> res = new List<string>();
+                    string[] s = fl.Split("\r\n");
+                    foreach (var elem in s)
+                    {
+                        if (elem.Contains("#: ") && elem.IndexOf("#: ") == 0)
+                        {
+                            res.Add(elem.Remove(0, 3));
+                        }
+                    }
+                    return res.ToArray();
+                }
+                catch { return null; }
+            }
+            /// <summary>
+            /// Проверка есть ли такой ключ True - Да, False - Нет
+            /// </summary>
+            /// <param name="Key"></param>
+            /// <returns></returns>
+            public virtual bool CheckKey(string Key)
+            {
+                if (!File.Exists(Path.Combine(Name, Key + expansion))) return false;
+                return true;
+            }
+            /// <summary>
+            /// Поиск элемента записей
+            /// </summary>
+            /// <param name="Name">Имя записи</param>
+            /// <param name="Minute">Мах время прошедшие с момента создания записи</param>
+            /// <param name="Check">Проверка доп ключа</param>
+            public virtual bool SearchName(string Name, double Minute, string Check = "Not CheckContent")
+            {
+                string[] Dirs = Directory.GetDirectories(function.GetPatch());
+                double TotalMinutes = long.MaxValue;
+                bool resulb = false;
+                foreach (var elem in Dirs)
+                {
+                    if (!File.Exists(Path.Combine(elem, "DateTimeInfo.txt")))
+                    {
+                        try
+                        {
+                            Directory.Delete(elem, true);
+                        }
+                        catch { }
+                        continue;
+                    }
+                    string[] inf = File.ReadAllText(Path.Combine(elem, "DateTimeInfo.txt")).Split("\r\n###");
+                    if (inf.Length == 4)
+                    {
+                        string[] dt = inf[0].Split('-');
+                        DateTime dateTime = new DateTime(
+                            Convert.ToInt32(dt[5]),
+                            Convert.ToInt32(dt[4]),
+                            Convert.ToInt32(dt[3]),
+                            Convert.ToInt32(dt[0]),
+                            Convert.ToInt32(dt[1]),
+                            Convert.ToInt32(dt[2])
+                            );
+                        double minute = (DateTime.Now - dateTime).TotalMinutes;
+                        if (minute <= Convert.ToInt64(inf[1]))
+                        {
+                            if (minute < Minute)
+                            {
+                                if (inf[2] == Name && (minute < TotalMinutes && Check != "Not CheckContent" ? inf[3] == Check : true))
+                                {
+                                    TotalMinutes = minute;
+                                    this.Name = elem;
+                                    resulb = true;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            try
+                            {
+                                Directory.Delete(elem, true);
+                            }
+                            catch { }
+                        }
+                    }
+                }
+                return resulb;
+            }
+            /// <summary>
+            /// Обновление времени создания
+            /// </summary>
+            /// <returns></returns>
+            public virtual bool UpdTime()
+            {
+                try
+                {
+                    string text = File.ReadAllText(Path.Combine(Path.Combine(function.GetPatch(), Name), "DateTimeInfo.txt"));
+                    File.WriteAllText(
+                        Path.Combine(Path.Combine(function.GetPatch(), Name), "DateTimeInfo.txt"),
+                        DateTime.Now.ToString("HH-mm-ss-dd-MM-yyyy") + text.Remove(0, text.IndexOf("\r\n###"))
+                        );
+                    return true;
+                }
+                catch (Exception e) { return false; }
             }
         }
         //========================================================================= Структуры
