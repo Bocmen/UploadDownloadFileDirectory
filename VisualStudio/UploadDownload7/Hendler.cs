@@ -20,6 +20,54 @@ namespace UploadDownload7
     namespace Core
     {
         /// <summary>
+        /// Загрузка папок и файлов (Upload)
+        /// </summary>
+        public class UploadDirectory
+        {
+            /// <summary>
+            /// Набор функций для данного класа некоторые из них можно переопределить
+            /// </summary>
+            private FunctionAndSetting functionAndSetting = new FunctionAndSetting();
+            /// <summary>
+            /// Необходима для рандомного пароля
+            /// </summary>
+            private static Random random = new Random();
+            /// <summary>
+            /// Временный файл содержащий в себе состояние загрузки
+            /// </summary>
+            private string TemporaryFileInfoSaved;
+
+
+            public string UploadFolder(string Patch, string Password = null, byte MaxFilesUpload = 1, FunctionAndSetting.Massenge massenge = null)
+            {
+
+            }
+
+            /// <summary>
+            /// Получение списка файлов и папок
+            /// </summary>
+            /// <param name="Patch"></param>
+            /// <returns></returns>
+            private List<string> GetFilesFolders(string Patch)
+            {
+                if (Directory.Exists(Patch))
+                {
+                    List<string> Dat = new List<string>();
+                    // Получение список файлов
+                    string[] all = Directory.GetFiles(Patch);
+                    Dat.AddRange(all);
+                    // Получение список папок
+                    all = Directory.GetDirectories(Patch);
+                    foreach (var Elem in all) Dat.AddRange(GetFilesFolders(Elem));
+                    if (Dat.Count > 0)
+                        return Dat;
+                    else
+                        return new List<string> { Patch };
+                }
+                else return new List<string> { Patch };
+            }
+        }
+        /// <summary>
         /// Скачивание файла или директории с файлами (Download)
         /// </summary>
         public class DownloadDirectory
@@ -39,7 +87,7 @@ namespace UploadDownload7
                 // Качаем главный файл
                 try
                 {
-                    FunctionAndSetting.BdDirectory bdDirectory = JsonConvert.DeserializeObject<FunctionAndSetting.BdDirectory>(Encoding.UTF8.GetString(functionAndSetting.DeCompress(functionAndSetting.Download(UrlFile), Password)));
+                    BdDirectory bdDirectory = JsonConvert.DeserializeObject<BdDirectory>(Encoding.UTF8.GetString(functionAndSetting.DeCompress(functionAndSetting.Download(UrlFile), Password)));
                     if (bdDirectory.UploadetFiles.Count <= 0)
                     {
                         if (massenge != null) massenge.Invoke("[Error] Ошибка получения главного файла", ConsoleColor.Red);
@@ -98,98 +146,6 @@ namespace UploadDownload7
                     if (s != null && s.Length >= 0 && s[0] == '\\') s = s.Remove(0, 1);
                     return s == "" ? null : s;
                 }
-            }
-        }
-        /// <summary>
-        /// Загрузка папок и файлов (Upload)
-        /// </summary>
-        public class UploadDirectory
-        {
-            /// <summary>
-            /// Набор функций для данного класа некоторые из них можно переопределить
-            /// </summary>
-            private FunctionAndSetting functionAndSetting = new FunctionAndSetting();
-            /// <summary>
-            /// Необходима для рандомного пароля
-            /// </summary>
-            private static Random random = new Random();
-            /// <summary>
-            /// Временный файл содержащий в себе состояние загрузки
-            /// </summary>
-            private string TemporaryFileInfoSaved;
-            /// <summary>
-            /// Загрузка файла или директории с файлами и папками
-            /// </summary>
-            /// <param name="Patch">Путь к файлу или директории</param>
-            /// <param name="Password">Пароль для шифрования</param>
-            /// <param name="MaxFilesUpload">Максимальное число одновременно загружающихся частей файла</param>
-            /// <param name="massenge">Метод для логирования</param>
-            /// <returns></returns>
-            public string UploadFolder(string Patch, string Password = null, byte MaxFilesUpload = 1, FunctionAndSetting.Massenge massenge = null)
-            {
-                FunctionAndSetting.BdDirectory Bd = new FunctionAndSetting.BdDirectory { UploadetFiles = new List<FunctionAndSetting.OneElemSaveDir>(0) };
-                UploadFile uploadFile = new UploadFile(ref functionAndSetting);
-                TemporaryFileInfoSaved = Path.Combine(Patch, Path.GetFileName(Patch) + FunctionAndSetting.ExpansionUploadDirectory);
-                if (File.Exists(TemporaryFileInfoSaved))
-                {
-                    string[] res = File.ReadAllText(TemporaryFileInfoSaved).Split("\r\n");
-                    for (long i = 1; i < res.LongLength; i++) Bd.UploadetFiles.Add(JsonConvert.DeserializeObject<FunctionAndSetting.OneElemSaveDir>(res[i]));
-                }
-                else File.WriteAllText(TemporaryFileInfoSaved, null);
-                string[] PatchSaves = GetFilesFolders(Patch).ToArray();
-                foreach (var Elem in PatchSaves)
-                {
-                    if (!CheckPartList(Bd.UploadetFiles, Path.GetFullPath(Elem).Replace(Path.GetFullPath(Patch), null)))
-                    {
-                        if (File.Exists(Elem))
-                        {
-                            FunctionAndSetting.OneElemSaveDir oneElem = new FunctionAndSetting.OneElemSaveDir { SaveDirectory = Path.GetFullPath(Elem).Replace(Path.GetFullPath(Patch), null), Password = random.Next(int.MinValue, int.MaxValue).ToString() };
-                            oneElem.ResulUploadFileInfo = uploadFile.UploadFileHendler(Elem, MaxFilesUpload, oneElem.Password, massenge);
-                            Bd.UploadetFiles.Add(oneElem);
-                        restAddDat: try { File.AppendAllText(TemporaryFileInfoSaved, "\r\n" + JsonConvert.SerializeObject(oneElem)); } catch { goto restAddDat; }
-                        }
-                        else if (Directory.Exists(Elem) && Directory.GetDirectories(Elem).Length <= 0) Bd.UploadetFiles.Add(new FunctionAndSetting.OneElemSaveDir { SaveDirectory = Path.GetFullPath(Elem).Replace(Path.GetFullPath(Patch), null) });
-                    }
-                }
-                File.Delete(TemporaryFileInfoSaved);
-                return functionAndSetting.Upload(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(Bd)), "info.txt");
-            }
-            /// <summary>
-            /// Метод проверяющий надо ли загружать файл
-            /// 1 если он есть в бд "List<FunctionAndSetting.OneElemSaveDir> Elems" то файл не должен быть загружен
-            /// 2 если он является логом методов UploadFile или DownloadFile
-            /// </summary>
-            /// <param name="Elems"></param>
-            /// <param name="PatchSave"></param>
-            /// <returns></returns>
-            private bool CheckPartList(List<FunctionAndSetting.OneElemSaveDir> Elems, string PatchSave)
-            {
-                foreach (var Elem in Elems) if (Elem.SaveDirectory == PatchSave) return true;
-                if (PatchSave.Contains(FunctionAndSetting.ExpansionDownload) || PatchSave.Contains(FunctionAndSetting.ExpansionUpload) || PatchSave.Contains(FunctionAndSetting.ExpansionUploadDirectory) || PatchSave.Contains(FunctionAndSetting.ExpansionDownloadDirectory)) return true;
-                return false;
-            }
-            /// <summary>
-            /// Получение списка файлов и папок
-            /// </summary>
-            /// <param name="Patch"></param>
-            /// <returns></returns>
-            private List<string> GetFilesFolders(string Patch)
-            {
-                if (Directory.Exists(Patch))
-                {
-                    List<string> Dat = new List<string>();
-                    // Получение список файлов
-                    string[] all = Directory.GetFiles(Patch);
-                    Dat.AddRange(all);
-                    // Получение список папок
-                    all = Directory.GetDirectories(Patch);
-                    foreach (var Elem in all) Dat.AddRange(GetFilesFolders(Elem));
-                    if (Dat.Count > 0)
-                        return Dat;
-                    else
-                        return new List<string> { Patch };
-                }
-                else return new List<string> { Patch };
             }
         }
         /// <summary>
@@ -350,20 +306,6 @@ namespace UploadDownload7
                     if (massenge != null) massenge.Invoke(String.Format("Произошла ошибка {0} при загрузке осуществляю перезапуск {1}", e.Message, dataSaveInfo.FileIdName), ConsoleColor.Yellow);
                     goto restart;
                 }
-            }
-            /// <summary>
-            /// Информация о загруженном файле
-            /// </summary>
-            public struct ResulUploadFileInfo
-            {
-                /// <summary>
-                /// Ссылка на сохранёный файл (или главный файл с инфой)
-                /// </summary>
-                public string UrlSave;
-                /// <summary>
-                /// Если true то ссылка ведёт на сам файл, если false то ссылка ведёт на файл с информациео о том где и как хранятся частии этого файла
-                /// </summary>
-                public bool InfoSave;
             }
         }
         /// <summary>
@@ -650,32 +592,6 @@ namespace UploadDownload7
             {
                 return Url.Substring(Url.Replace('/', '\\').LastIndexOf('\\') + 1, Url.Length - Url.Replace('/', '\\').LastIndexOf('\\') - 1);
             }
-            //========================================================================= Структуры
-            /// <summary>
-            /// Информация о загруженном файле
-            /// </summary>
-            public struct OneElemSaveDir
-            {
-                /// <summary>
-                /// Пароль к файлу
-                /// </summary>
-                public string Password;
-                /// <summary>
-                /// Информация о загруженной части (ссылка на неё и способ загрузки)
-                /// </summary>
-                public UploadFile.ResulUploadFileInfo ResulUploadFileInfo;
-                /// <summary>
-                /// Локальный путь к файлу
-                /// </summary>
-                public string SaveDirectory;
-            }
-            /// <summary>
-            /// Структура для сохранения целой директории
-            /// </summary>
-            public struct BdDirectory
-            {
-                public List<OneElemSaveDir> UploadetFiles;
-            }
         }
         /// <summary>
         /// Класс для сортировки бд
@@ -694,6 +610,21 @@ namespace UploadDownload7
                 }
                 return 0;
             }
+        }
+        //========================================================================= Структуры
+        /// <summary>
+        /// Информация о загруженном файле
+        /// </summary>
+        public struct ResulUploadFileInfo
+        {
+            /// <summary>
+            /// Ссылка на сохранёный файл (или главный файл с инфой)
+            /// </summary>
+            public string UrlSave;
+            /// <summary>
+            /// Если true то ссылка ведёт на сам файл, если false то ссылка ведёт на файл с информациео о том где и как хранятся частии этого файла
+            /// </summary>
+            public bool InfoSave;
         }
         /// <summary>
         /// Информация о загруженном одном файле
@@ -734,6 +665,31 @@ namespace UploadDownload7
             /// Размер части
             /// </summary>
             public long Size;
+        }
+        /// <summary>
+        /// Информация о загруженном файле
+        /// </summary>
+        public struct OneElemSaveDir
+        {
+            /// <summary>
+            /// Пароль к файлу
+            /// </summary>
+            public string Password;
+            /// <summary>
+            /// Информация о загруженной части (ссылка на неё и способ загрузки)
+            /// </summary>
+            public ResulUploadFileInfo ResulUploadFileInfo;
+            /// <summary>
+            /// Локальный путь к файлу
+            /// </summary>
+            public string SaveDirectory;
+        }
+        /// <summary>
+        /// Структура для сохранения целой директории
+        /// </summary>
+        public struct BdDirectory
+        {
+            public List<OneElemSaveDir> UploadetFiles;
         }
     }
 }
