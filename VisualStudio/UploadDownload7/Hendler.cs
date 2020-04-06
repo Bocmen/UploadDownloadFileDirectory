@@ -36,13 +36,57 @@ namespace UploadDownload7
             /// Временный файл содержащий в себе состояние загрузки
             /// </summary>
             private string TemporaryFileInfoSaved;
-
-
+            /// <summary>
+            /// Загрузка файла или директории с файлами и папками
+            /// </summary>
+            /// <param name="Patch">Путь к файлу или директории</param>
+            /// <param name="Password">Пароль для шифрования</param>
+            /// <param name="MaxFilesUpload">Максимальное число одновременно загружающихся частей файла</param>
+            /// <param name="massenge">Метод для логирования</param>
+            /// <returns></returns>
             public string UploadFolder(string Patch, string Password = null, byte MaxFilesUpload = 1, FunctionAndSetting.Massenge massenge = null)
             {
-
+                BdDirectory Bd = new BdDirectory { UploadetFiles = new List<OneElemSaveDir>(0) };
+                UploadFile uploadFile = new UploadFile(ref functionAndSetting);
+                TemporaryFileInfoSaved = Path.Combine(Patch, Path.GetFileName(Patch) + FunctionAndSetting.ExpansionUploadDirectory);
+                if (File.Exists(TemporaryFileInfoSaved))
+                {
+                    string[] res = File.ReadAllText(TemporaryFileInfoSaved).Split("\r\n");
+                    for (long i = 1; i < res.LongLength; i++) Bd.UploadetFiles.Add(JsonConvert.DeserializeObject<OneElemSaveDir>(res[i]));
+                }
+                else File.WriteAllText(TemporaryFileInfoSaved, null);
+                string[] PatchSaves = GetFilesFolders(Patch).ToArray();
+                foreach (var Elem in PatchSaves)
+                {
+                    if (!CheckPartList(Bd.UploadetFiles, Path.GetFullPath(Elem).Replace(Path.GetFullPath(Patch), null)))
+                    {
+                        if (File.Exists(Elem))
+                        {
+                            OneElemSaveDir oneElem = new OneElemSaveDir { SaveDirectory = Path.GetFullPath(Elem).Replace(Path.GetFullPath(Patch), null), Password = random.Next(int.MinValue, int.MaxValue).ToString() };
+                            oneElem.ResulUploadFileInfo = uploadFile.UploadFileHendler(Elem, MaxFilesUpload, oneElem.Password, massenge);
+                            Bd.UploadetFiles.Add(oneElem);
+                        restAddDat: try { File.AppendAllText(TemporaryFileInfoSaved, "\r\n" + JsonConvert.SerializeObject(oneElem)); } catch { goto restAddDat; }
+                        }
+                        else if (Directory.Exists(Elem) && Directory.GetDirectories(Elem).Length <= 0) Bd.UploadetFiles.Add(new OneElemSaveDir { SaveDirectory = Path.GetFullPath(Elem).Replace(Path.GetFullPath(Patch), null) });
+                    }
+                }
+                File.Delete(TemporaryFileInfoSaved);
+                return functionAndSetting.Upload(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(Bd)), "info.txt");
             }
-
+            /// <summary>
+            /// Метод проверяющий надо ли загружать файл
+            /// 1 если он есть в бд "List<FunctionAndSetting.OneElemSaveDir> Elems" то файл не должен быть загружен
+            /// 2 если он является логом методов UploadFile или DownloadFile
+            /// </summary>
+            /// <param name="Elems"></param>
+            /// <param name="PatchSave"></param>
+            /// <returns></returns>
+            private bool CheckPartList(List<OneElemSaveDir> Elems, string PatchSave)
+            {
+                foreach (var Elem in Elems) if (Elem.SaveDirectory == PatchSave) return true;
+                if (PatchSave.Contains(FunctionAndSetting.ExpansionDownload) || PatchSave.Contains(FunctionAndSetting.ExpansionUpload) || PatchSave.Contains(FunctionAndSetting.ExpansionUploadDirectory) || PatchSave.Contains(FunctionAndSetting.ExpansionDownloadDirectory)) return true;
+                return false;
+            }
             /// <summary>
             /// Получение списка файлов и папок
             /// </summary>
