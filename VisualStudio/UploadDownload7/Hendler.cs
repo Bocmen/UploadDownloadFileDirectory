@@ -2,7 +2,7 @@
 |
 |
 | vk.com      https://vk.com/denisivanov220
-+---------------------------------------------- ProjectUrl https://github.com/Bocmen/UploadDownloadFileDirectory
++---------------------------------------------- ProjectUrl https://github.com/Bocmen/UploadDownloadFileDirectory/tree/Ver-2
 | github.com  https://github.com/Bocmen
 |
 |
@@ -166,7 +166,10 @@ namespace UploadDownload7
             /// Необходима для рандомного пароля
             /// </summary>
             private static Random random = new Random();
-            private Loget loget;
+            /// <summary>
+            /// Класс для сохранения состояния загрузки
+            /// </summary>
+            public Loget loget;
             //==================================================== Данные необходимые для работы
             /// <summary>
             /// Бд файла содержит в себе ссылки на все части файла его название и.т.д (для более подробного ознакомления смотри структуру)
@@ -181,6 +184,9 @@ namespace UploadDownload7
             /// </summary>
             private byte MaxFilesUpload = 1;
             //==================================================== Инцилизация
+            public UploadFile(Loget loget) { this.loget = loget; functionAndSetting = loget.function; }
+            public UploadFile(FunctionAndSetting functionAndSetting, Loget loget) { this.functionAndSetting = functionAndSetting; this.loget = loget; this.loget.function = this.functionAndSetting; }
+            public UploadFile(ref FunctionAndSetting functionAndSetting, ref Loget loget) { this.functionAndSetting = functionAndSetting; loget = new Loget(functionAndSetting); }
             public UploadFile(FunctionAndSetting functionAndSetting) { this.functionAndSetting = functionAndSetting; loget = new Loget(functionAndSetting); }
             public UploadFile(ref FunctionAndSetting functionAndSetting) { this.functionAndSetting = functionAndSetting; loget = new Loget(functionAndSetting); }
             public UploadFile() { loget = new Loget(functionAndSetting); }
@@ -318,7 +324,7 @@ namespace UploadDownload7
             /// <summary>
             /// Предыдущий Id части файла
             /// </summary>
-            private long OldIdSave = long.MinValue;
+            private long OldIdSave = long.MaxValue;
             /// <summary>
             /// Текущие количество загружеемых одновременно файлов
             /// </summary>
@@ -332,72 +338,57 @@ namespace UploadDownload7
             /// </summary>
             private FileStream file;
             /// <summary>
-            /// Временная папка для загрузки частей
+            /// Класс для сохранения состояния загрузки
             /// </summary>
-            private string FolderPart;
-            /// <summary>
-            /// Количество уже загруженных файлов
-            /// </summary>
-            private int CountUploadetPart = 0;
+            public Loget loget;
             ///=================================================== Инцилизация
-            public DownloadFile(FunctionAndSetting functionAndSetting) { this.functionAndSetting = functionAndSetting; }
-            public DownloadFile(ref FunctionAndSetting functionAndSetting) { this.functionAndSetting = functionAndSetting; }
-            public DownloadFile() { }
+            public DownloadFile(FunctionAndSetting functionAndSetting) { this.functionAndSetting = functionAndSetting; loget = new Loget(ref this.functionAndSetting); }
+            public DownloadFile(ref FunctionAndSetting functionAndSetting) { this.functionAndSetting = functionAndSetting; loget = new Loget(ref this.functionAndSetting); }
+            public DownloadFile(FunctionAndSetting functionAndSetting, Loget loget) { this.functionAndSetting = functionAndSetting; loget = new Loget(ref this.functionAndSetting); }
+            public DownloadFile(ref FunctionAndSetting functionAndSetting, ref Loget loget) { this.functionAndSetting = functionAndSetting; loget = new Loget(ref this.functionAndSetting); }
+            public DownloadFile() { loget = new Loget(ref functionAndSetting); }
             //==================================================== Методы
             public void DownloadHendler(string UrlFile, string PatchTo, string NameFile = null, byte MaxFilesUpload = 1, string Password = null, FunctionAndSetting.Massenge massenge = null)
             {
                 if (!Directory.Exists(PatchTo)) { if (massenge != null) massenge.Invoke("[Error] Такой директории не существует", ConsoleColor.Red); return; }
                 this.MaxFilesUpload = MaxFilesUpload;
                 Count = 0;
-                CountUploadetPart = 0;
                 // Качаем главный файл
                 byte[] FileHead = functionAndSetting.DeCompress(UploadDownloadWdho.Download.GetBytesFile(UrlFile), Password);
                 try
                 {
                     uploadFileInfo = JsonConvert.DeserializeObject<UploadFileInfo>(Encoding.UTF8.GetString(FileHead));
-                    FolderPart = Path.Combine(PatchTo, uploadFileInfo.NameFale + functionAndSetting.GetKeyFile(UrlFile) + FunctionAndSetting.ExpansionDownload);
                     try
                     {
                         List<string> IgnorePart = new List<string>(0);
-                        if (Directory.Exists(FolderPart))
+                        if (loget.SearchName(uploadFileInfo.NameFale + functionAndSetting.GetKeyFile(UrlFile) + FunctionAndSetting.ExpansionDownload, FunctionAndSetting.TimeLiveFilesLog, Path.Combine(PatchTo, uploadFileInfo.NameFale + functionAndSetting.GetKeyFile(UrlFile) + FunctionAndSetting.ExpansionDownload)))
                         {
-                            string[] allfiles = Directory.GetFiles(FolderPart);
+                            string[] allfiles = Directory.GetFiles(loget.GetUrlSaveData());
                             foreach (var Elem in allfiles)
                             {
-                                if (Path.GetFileName(Elem).Contains(FunctionAndSetting.ExpansionDownload))
-                                {
-                                    string s = Path.GetFileName(Elem).Replace(FunctionAndSetting.ExpansionDownload, null);
-                                    IgnorePart.Add(s);
-                                    if (!File.Exists(Path.Combine(FolderPart, s))) OldIdSave = Math.Max(OldIdSave, Convert.ToInt64(s));
-                                    CountUploadetPart++;
-                                }
+                                string s = Path.GetFileName(Elem).Replace(FunctionAndSetting.ExpansionDownload, null);
+                                IgnorePart.Add(s);
+                                if (!File.Exists(Path.Combine(loget.GetUrlSaveData(), s))) OldIdSave = Math.Max(OldIdSave, Convert.ToInt64(s));
                             }
                         }
-                        else { Directory.CreateDirectory(FolderPart); OldIdSave = long.MaxValue; }
-
-                        if (File.Exists(Path.Combine(PatchTo, uploadFileInfo.NameFale)))
-                            file = new FileStream(Path.Combine(PatchTo, uploadFileInfo.NameFale), FileMode.Append);
                         else
-                            file = new FileStream(Path.Combine(PatchTo, uploadFileInfo.NameFale), FileMode.OpenOrCreate);
-
-                        long FileSize = 0;
-                        foreach (var Elem in uploadFileInfo.Parts) FileSize += Elem.Size;
-                        if (FileSize == file.Length)
                         {
-                            if (Directory.Exists(FolderPart)) { restDelO: try { Directory.Delete(FolderPart, true); } catch { goto restDelO; } }
-                            return;
+                            loget.GenereteName(uploadFileInfo.NameFale + functionAndSetting.GetKeyFile(UrlFile) + FunctionAndSetting.ExpansionDownload, FunctionAndSetting.TimeLiveFilesLog, Path.Combine(PatchTo, uploadFileInfo.NameFale + functionAndSetting.GetKeyFile(UrlFile) + FunctionAndSetting.ExpansionDownload));
                         }
 
+                        file = new FileStream(Path.Combine(PatchTo, uploadFileInfo.NameFale), FileMode.OpenOrCreate);
+                        
                         foreach (var Elem in uploadFileInfo.Parts)
                         {
                             if (IgnorePart.Contains(Elem.FileIdName.ToString())) { if (massenge != null) massenge.Invoke("[Info] Файл был ранее загружен", ConsoleColor.Green); continue; }
-                            while (Count >= MaxFilesUpload) UploadPart(); // Ждем своей очереди загрузки
+                            while (Count >= MaxFilesUpload) ; // Ждем своей очереди загрузки
                             Count++;
                             Task.Run(() => DovnloadFile(Elem));
                         }
-                        while (Count > 0 || CountUploadetPart != uploadFileInfo.Parts.Count) UploadPart();// Ждём загрузку оставшихся файлов
-                        restDel: try { Directory.Delete(FolderPart, true); } catch { goto restDel; }
+                        while (Count > 0) ;// Ждём загрузку оставшихся файлов
+                        UploadPart();
                         file.Close();
+                    restDel: if (!loget.Delite()) goto restDel;
                     }
                     catch (Exception e)
                     {
@@ -415,14 +406,18 @@ namespace UploadDownload7
             /// </summary>
             private void UploadPart()
             {
-                string s = Path.Combine(FolderPart, (OldIdSave + 1).ToString());
-                if (File.Exists(s + FunctionAndSetting.ExpansionDownload) && File.Exists(s))
+                string s = Path.Combine(loget.GetUrlSaveData(), (OldIdSave + 1).ToString());
+                if (File.Exists(s))
                 {
-                    byte[] vs = File.ReadAllBytes(s);
-                    file.Write(vs, 0, vs.Length);
-                    CountUploadetPart++;
-                    File.Delete(s);
-                    OldIdSave++;
+                    try
+                    {
+                        byte[] vs = File.ReadAllBytes(s);
+                        file.Write(vs, 0, vs.Length);
+                        File.Delete(s);
+                        OldIdSave++;
+                    }
+                    catch { }
+                    UploadPart();
                 }
             }
             /// <summary>
@@ -431,8 +426,7 @@ namespace UploadDownload7
             /// <param name="dataSaveInfo">Информация о загружаемой части</param>
             private void DovnloadFile(DataSaveInfo dataSaveInfo)
             {
-                File.WriteAllBytes(Path.Combine(FolderPart, dataSaveInfo.FileIdName.ToString()), functionAndSetting.DeCompress(functionAndSetting.Download(dataSaveInfo.UrlFileID), dataSaveInfo.Password));
-                File.Create(Path.Combine(FolderPart, dataSaveInfo.FileIdName.ToString() + FunctionAndSetting.ExpansionDownload));
+                File.WriteAllBytes(Path.Combine(loget.GetUrlSaveData(), dataSaveInfo.FileIdName.ToString()), functionAndSetting.DeCompress(functionAndSetting.Download(dataSaveInfo.UrlFileID), dataSaveInfo.Password));
                 Count--;
             }
         }
@@ -632,10 +626,18 @@ namespace UploadDownload7
         /// </summary>
         public class Loget
         {
+            public FunctionAndSetting function;
             private string Name;
-            private FunctionAndSetting function;
-            const string expansion = ".log";
+            private const string expansion = ".log";
 
+            /// <summary>
+            /// Инцилизация логов
+            /// </summary>
+            /// <param name="Name">что то типо личного ключа</param>
+            public Loget()
+            {
+                function = new FunctionAndSetting();
+            }
             /// <summary>
             /// Инцилизация логов
             /// </summary>
@@ -841,6 +843,16 @@ namespace UploadDownload7
                     return true;
                 }
                 catch (Exception e) { return false; }
+            }
+            /// <summary>
+            /// Получение временной папки где можно хранить файлы
+            /// </summary>
+            /// <returns></returns>
+            public virtual string GetUrlSaveData()
+            {
+                string res = Path.Combine(Name, "FolderData");
+                if (!Directory.Exists(res)) Directory.CreateDirectory(res);
+                return res;
             }
         }
         //========================================================================= Структуры
