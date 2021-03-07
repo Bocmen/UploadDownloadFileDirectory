@@ -14,17 +14,18 @@ namespace UploadDownload7
             //   loget.AddData("Привет");
             //   loget.AddData("Это проверка");
 
-            Core.DownloadFile downloadFile = new Core.DownloadFile();
-            Core.UploadFile uploadFile = new Core.UploadFile();
+            Core.UploadDownloadFile.DownloadFile downloadFile = new Core.UploadDownloadFile.DownloadFile();
+            Core.UploadDownloadFile.UploadFile uploadFile = new Core.UploadDownloadFile.UploadFile();
             Core.UploadDirectory uploadDirectory = new Core.UploadDirectory();
-            Core.DownloadDirectory downloadDirectory = new Core.DownloadDirectory();
 
-            // var resul = uploadFile.UploadFileHendler(@"C:\Users\den20\Videos\Grand Theft Auto V\Grand Theft Auto V 2020.01.23 - 22.52.12.23.DVR.mp4", 10,"305", ConsoleWrite);
+           // var resul = uploadFile.UploadFileHendler(@"C:\Users\den20\Videos\Grand Theft Auto V\Grand Theft Auto V 2020.01.23 - 22.52.12.23.DVR.mp4", 10,"305", ConsoleWrite);
             //  var Resul = uploadFile.UploadFileHendler(@"D:\Вн в кармане.rar", 20,"305", ConsoleWrite);
             //  downloadFile.DownloadHendler("https://wdho.ru/576c", @"D:\Test", MaxFilesUpload: 20, Password: "305");
             //     var Resul =  uploadDirectory.UploadFolder(@"C:\Users\den20\OneDrive\Изображения\Новая папка (2)", "3434",10, ConsoleWrite);
             //     downloadDirectory.Download(@"D:\dfd", Resul, "3434", 2, ConsoleWrite);
-            downloadFile.DownloadHendler("https://wdho.ru/9o3m", @"D:\Test",massenge: ConsoleWrite, Password:"305",MaxFilesUpload:5);
+            //  downloadFile.DownloadHendler("https://wdho.ru/9o3m", @"D:\Test",massenge: ConsoleWrite, Password:"305",MaxFilesUpload:5);
+            //D:\Test
+            uploadDirectory.UploadFolder(@"D:\Test","sds",10, ConsoleWrite);
             while (true) Console.ReadKey();
         }
         // 5 гигов https://wdho.ru/576c
